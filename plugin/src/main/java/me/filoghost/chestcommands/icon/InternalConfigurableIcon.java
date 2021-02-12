@@ -16,6 +16,7 @@ import me.filoghost.chestcommands.icon.requirement.RequiredPoints;
 import me.filoghost.chestcommands.icon.requirement.Requirement;
 import me.filoghost.chestcommands.icon.requirement.item.RequiredItem;
 import me.filoghost.chestcommands.icon.requirement.item.RequiredItems;
+import me.filoghost.chestcommands.placeholder.PlaceholderString;
 import me.filoghost.fcommons.Preconditions;
 import me.filoghost.fcommons.collection.CollectionUtils;
 import org.bukkit.Material;
@@ -25,13 +26,17 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class InternalConfigurableIcon extends BaseConfigurableIcon implements RefreshableIcon {
 
     private IconPermission viewPermission;
     private IconPermission clickPermission;
-    private String noClickPermissionMessage;
+    private PlaceholderString noClickPermissionMessage;
+
+    private IconPermissions clickPermissions;
+    private List<PlaceholderString> permissionMessages;
 
     private RequiredMoney requiredMoney;
     private RequiredPoints requiredPoints;
@@ -60,9 +65,22 @@ public class InternalConfigurableIcon extends BaseConfigurableIcon implements Re
     }
     
     public void setNoClickPermissionMessage(String noClickPermissionMessage) {
-        this.noClickPermissionMessage = noClickPermissionMessage;
+        this.noClickPermissionMessage = PlaceholderString.of(noClickPermissionMessage);
     }
-        
+
+    public void setClickPermissions(IconPermissions clickPermissions) {
+        this.clickPermissions = clickPermissions;
+    }
+
+    public void setNoclickPermissionMessages(List<String> messages) {
+        if (messages != null && !messages.isEmpty()) {
+            this.permissionMessages = new ArrayList<>(messages.size());
+            for (String message : messages) {
+                this.permissionMessages.add(PlaceholderString.of(message));
+            }
+        }
+    }
+
     public void setViewPermission(String viewPermission) {
         this.viewPermission = new IconPermission(viewPermission);
     }
@@ -139,11 +157,17 @@ public class InternalConfigurableIcon extends BaseConfigurableIcon implements Re
 
         if (!IconPermission.hasPermission(player, clickPermission)) {
             if (noClickPermissionMessage != null) {
-                player.sendMessage(noClickPermissionMessage);
+                player.sendMessage(noClickPermissionMessage.getValue(player));
             } else {
                 player.sendMessage(Lang.default_no_icon_permission);
             }
             return clickResult;
+        }
+
+        if (clickPermissions !=null) {
+            if (!clickPermissions.checkAndSendMessages(player, permissionMessages)) {
+                return clickResult;
+            }
         }
 
         // Check all the requirements
